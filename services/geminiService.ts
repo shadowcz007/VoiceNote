@@ -1,14 +1,10 @@
-import { GoogleGenAI } from "@google/genai";
 import { PromptType, PRESET_PROMPTS } from '../types';
 
-// Initialize the client with the environment variable
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const processNoteContent = async (text: string, promptType: PromptType, token: string): Promise<string> => {
+  if (!token) {
+    throw new Error("SiliconFlow API Token is missing. Please configure it in Settings.");
+  }
 
-export const processNoteContent = async (text: string, promptType: PromptType): Promise<string> => {
-  // If RAW, we might still want to do a light pass for punctuation, or just return as is.
-  // For this app, let's use Gemini to "clean up" the raw text slightly even for RAW mode,
-  // or strictly follow the preset prompt.
-  
   const systemInstruction = `You are an expert AI assistant helping to organize voice notes. 
   Your goal is to transform the user's raw transcribed text according to the requested format.
   
@@ -18,19 +14,54 @@ export const processNoteContent = async (text: string, promptType: PromptType): 
   Return ONLY the processed content. Do not include conversational filler like "Here is your summary".`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: text,
-      config: {
-        systemInstruction: systemInstruction,
-        temperature: 0.3, // Low temperature for more deterministic/factual results
-      }
+    const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'deepseek-ai/DeepSeek-V3',
+        messages: [
+          {
+            role: 'system',
+            content: systemInstruction
+          },
+          {
+            role: 'user',
+            content: text
+          }
+        ],
+        temperature: 0.3
+      })
     });
 
-    return response.text || text; // Fallback to original text if empty
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`API Error: ${response.status} - ${errorBody}`);
+    }
+
+    const data = await response.json();
+    console.log('SiliconFlow API Response:', JSON.stringify(data, null, 2));
+    
+    // 检查响应结构
+    if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+      console.error('Invalid response structure - no choices:', data);
+      throw new Error('Invalid API response: no choices found');
+    }
+
+    const content = data.choices[0]?.message?.content;
+    
+    if (!content) {
+      console.error('No content in response:', data);
+      throw new Error('No content in API response');
+    }
+
+    console.log('Extracted content:', content);
+    return content;
   } catch (error) {
-    console.error("Gemini processing failed:", error);
-    // In case of AI failure, return the original transcribed text so the user doesn't lose data
-    return text;
+    console.error("SiliconFlow processing failed:", error);
+    // 抛出错误让上层处理，而不是静默返回原始文本
+    throw error;
   }
 };

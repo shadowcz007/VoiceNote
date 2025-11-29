@@ -59,11 +59,18 @@ const App: React.FC = () => {
   };
 
   const handlePromptSelect = async (type: PromptType) => {
+    if (!settings.siliconFlowToken) {
+      alert("Please set your SiliconFlow API Token in settings first.");
+      setIsSettingsOpen(true);
+      return;
+    }
+
     setIsProcessingModalOpen(false);
     setIsProcessing(true); // Show processing during AI generation
 
     try {
-      const generatedContent = await processNoteContent(currentTranscription, type);
+      const generatedContent = await processNoteContent(currentTranscription, type, settings.siliconFlowToken);
+      console.log('Generated content:', generatedContent);
       
       const newNote: Note = {
         id: crypto.randomUUID(),
@@ -73,10 +80,18 @@ const App: React.FC = () => {
         promptType: type
       };
 
-      setNotes(prev => [newNote, ...prev]);
+      console.log('New note created:', newNote);
+      setNotes(prev => {
+        const updated = [newNote, ...prev];
+        console.log('Setting notes, new count:', updated.length);
+        return updated;
+      });
+      
+      // Scroll to top to show the new note
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
-      console.error(error);
-      alert("Failed to generate content.");
+      console.error('Error in handlePromptSelect:', error);
+      alert(`Failed to generate content: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsProcessing(false);
       setCurrentTranscription('');
@@ -93,6 +108,15 @@ const App: React.FC = () => {
     note.processedContent.toLowerCase().includes(searchQuery.toLowerCase()) ||
     note.originalText.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Debug: Monitor notes changes
+  useEffect(() => {
+    console.log('Notes state updated:', notes.length, 'notes');
+    console.log('Filtered notes:', filteredNotes.length, 'notes');
+    if (notes.length > 0) {
+      console.log('Latest note:', notes[0]);
+    }
+  }, [notes, filteredNotes]);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
@@ -138,6 +162,16 @@ const App: React.FC = () => {
             <h3 className="text-lg font-medium text-gray-600">No notes yet</h3>
             <p className="text-sm max-w-xs mx-auto mt-2">
               Tap the microphone button below to start recording your thoughts.
+            </p>
+          </div>
+        ) : filteredNotes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center text-gray-400">
+            <div className="bg-white p-6 rounded-full shadow-sm mb-4">
+              <Search className="w-12 h-12 text-indigo-100" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-600">No notes match your search</h3>
+            <p className="text-sm max-w-xs mx-auto mt-2">
+              Try a different search term or clear the search to see all notes.
             </p>
           </div>
         ) : (
