@@ -1,15 +1,24 @@
-import { PromptType, PRESET_PROMPTS } from '../types';
+import { AppSettings } from '../types';
+import { getPromptForCategory } from '../utils/promptUtils';
 
-export const processNoteContent = async (text: string, promptType: PromptType, token: string): Promise<string> => {
+export const processNoteContent = async (
+  text: string, 
+  promptType: string, 
+  token: string,
+  settings?: AppSettings
+): Promise<string> => {
   if (!token) {
     throw new Error("SiliconFlow API Token is missing. Please configure it in Settings.");
   }
+
+  // 使用工具函数获取prompt内容（优先使用自定义prompt）
+  const promptInstruction = getPromptForCategory(promptType, settings);
 
   const systemInstruction = `You are an expert AI assistant helping to organize voice notes. 
   Your goal is to transform the user's raw transcribed text according to the requested format.
   
   The user's selected mode is: ${promptType}
-  The specific instruction for this mode is: ${PRESET_PROMPTS[promptType]}
+  The specific instruction for this mode is: ${promptInstruction}
   
   Return ONLY the processed content. Do not include conversational filler like "Here is your summary".`;
 

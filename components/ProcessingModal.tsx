@@ -1,17 +1,20 @@
 import React from 'react';
-import { PromptType } from '../types';
-import { PROMPT_OPTIONS } from '../constants';
+import { AppSettings } from '../types';
+import { getPromptCategories } from '../utils/promptUtils';
 import { Wand2 } from 'lucide-react';
 
 interface ProcessingModalProps {
   isOpen: boolean;
   transcription: string;
-  onConfirm: (type: PromptType) => void;
+  settings?: AppSettings;
+  onConfirm: (type: string) => void;
   onCancel: () => void;
 }
 
-const ProcessingModal: React.FC<ProcessingModalProps> = ({ isOpen, transcription, onConfirm, onCancel }) => {
+const ProcessingModal: React.FC<ProcessingModalProps> = ({ isOpen, transcription, settings, onConfirm, onCancel }) => {
   if (!isOpen) return null;
+
+  const categories = getPromptCategories(settings);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-0">
@@ -31,14 +34,14 @@ const ProcessingModal: React.FC<ProcessingModalProps> = ({ isOpen, transcription
           <p className="text-sm font-medium text-gray-700 mb-3">Choose a style:</p>
           
           <div className="grid grid-cols-2 gap-3">
-            {PROMPT_OPTIONS.map((option) => (
+            {categories.map((category) => (
               <button
-                key={option.type}
-                onClick={() => onConfirm(option.type)}
+                key={category.id}
+                onClick={() => onConfirm(category.id)}
                 className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left group"
               >
-                <span className="text-xl group-hover:scale-110 transition-transform">{option.icon}</span>
-                <span className="text-sm font-medium text-gray-700 group-hover:text-indigo-700">{option.label}</span>
+                <span className="text-xl group-hover:scale-110 transition-transform">{category.icon}</span>
+                <span className="text-sm font-medium text-gray-700 group-hover:text-indigo-700">{category.name}</span>
               </button>
             ))}
           </div>

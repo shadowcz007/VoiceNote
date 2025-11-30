@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Mic, Search, Plus } from 'lucide-react';
-import { Note, AppSettings, PromptType } from './types';
+import { Note, AppSettings } from './types';
 import { LOCAL_STORAGE_KEY_NOTES, LOCAL_STORAGE_KEY_SETTINGS } from './constants';
 import { transcribeAudio } from './services/siliconFlowService';
 import { processNoteContent } from './services/geminiService';
@@ -18,24 +18,81 @@ const App: React.FC = () => {
   const [currentTranscription, setCurrentTranscription] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Migration: Map old enum values to new category IDs
+  const migratePromptType = (oldType: string): string => {
+    const migrationMap: Record<string, string> = {
+      'Raw Record': 'raw',
+      'Summary': 'summary',
+      'Action Items': 'action_items',
+      'Journal Entry': 'journal',
+      'Email Draft': 'email',
+      'Code Snippet': 'code'
+    };
+    return migrationMap[oldType] || oldType; // Return as-is if not in map (already migrated or custom)
+  };
 
   // Initialization
   useEffect(() => {
     const savedNotes = localStorage.getItem(LOCAL_STORAGE_KEY_NOTES);
-    if (savedNotes) setNotes(JSON.parse(savedNotes));
+    if (savedNotes) {
+      try {
+        const parsed = JSON.parse(savedNotes);
+        // Migrate old promptType values
+        const migratedNotes = parsed.map((note: Note) => ({
+          ...note,
+          promptType: migratePromptType(note.promptType)
+        }));
+        setNotes(migratedNotes);
+        // Save migrated notes back
+        if (JSON.stringify(parsed) !== JSON.stringify(migratedNotes)) {
+          localStorage.setItem(LOCAL_STORAGE_KEY_NOTES, JSON.stringify(migratedNotes));
+        }
+      } catch (error) {
+        console.error('Failed to parse saved notes:', error);
+      }
+    }
 
     const savedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
-    if (savedSettings) setSettings(JSON.parse(savedSettings));
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings);
+        // Migrate old customPrompts keys if needed
+        if (parsed.customPrompts) {
+          const migratedPrompts: Record<string, string> = {};
+          Object.keys(parsed.customPrompts).forEach(oldKey => {
+            const newKey = migratePromptType(oldKey);
+            migratedPrompts[newKey] = parsed.customPrompts[oldKey];
+          });
+          parsed.customPrompts = migratedPrompts;
+        }
+        setSettings(parsed);
+      } catch (error) {
+        console.error('Failed to parse saved settings:', error);
+      }
+    }
+    setIsInitialized(true);
   }, []);
 
   // Persistence
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_NOTES, JSON.stringify(notes));
-  }, [notes]);
+    if (!isInitialized) return; // 避免初始化时保存空值
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_NOTES, JSON.stringify(notes));
+    } catch (error) {
+      console.error('Failed to save notes:', error);
+    }
+  }, [notes, isInitialized]);
 
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(settings));
-  }, [settings]);
+    if (!isInitialized) return; // 避免初始化时保存空值
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(settings));
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    }
+  }, [settings, isInitialized]);
 
   // Handlers
   const handleRecordingComplete = async (blob: Blob) => {
@@ -58,7 +115,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handlePromptSelect = async (type: PromptType) => {
+  const handlePromptSelect = async (type: string) => {
     if (!settings.siliconFlowToken) {
       alert("Please set your SiliconFlow API Token in settings first.");
       setIsSettingsOpen(true);
@@ -69,7 +126,12 @@ const App: React.FC = () => {
     setIsProcessing(true); // Show processing during AI generation
 
     try {
-      const generatedContent = await processNoteContent(currentTranscription, type, settings.siliconFlowToken);
+      const generatedContent = await processNoteContent(
+        currentTranscription, 
+        type, 
+        settings.siliconFlowToken,
+        settings
+      );
       console.log('Generated content:', generatedContent);
       
       const newNote: Note = {
@@ -176,7 +238,7 @@ const App: React.FC = () => {
           </div>
         ) : (
           filteredNotes.map(note => (
-            <NoteCard key={note.id} note={note} />
+            <NoteCard key={note.id} note={note} settings={settings} />
           ))
         )}
       </main>
@@ -198,6 +260,7 @@ const App: React.FC = () => {
       <ProcessingModal 
         isOpen={isProcessingModalOpen}
         transcription={currentTranscription}
+        settings={settings}
         onConfirm={handlePromptSelect}
         onCancel={handleCancelProcessing}
       />

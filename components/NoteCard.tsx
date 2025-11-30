@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
-import { Note, PromptType } from '../types';
-import { PROMPT_OPTIONS } from '../constants';
+import { Note, AppSettings } from '../types';
+import { getCategoryById, getCategoryDisplayName, getCategoryIcon } from '../utils/promptUtils';
 import { ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 
 interface NoteCardProps {
   note: Note;
+  settings?: AppSettings;
 }
 
-const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
+const NoteCard: React.FC<NoteCardProps> = ({ note, settings }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const promptInfo = PROMPT_OPTIONS.find(p => p.type === note.promptType) || PROMPT_OPTIONS[0];
+  const category = getCategoryById(note.promptType, settings);
+  const displayName = getCategoryDisplayName(note.promptType, settings);
+  const icon = getCategoryIcon(note.promptType, settings);
+  const isDeleted = !category;
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString('en-US', {
@@ -33,15 +37,16 @@ const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
       <div className="p-5">
         <div className="flex justify-between items-start mb-3">
           <div className="flex items-center gap-2">
-            <span className="bg-indigo-50 text-indigo-600 p-1.5 rounded-lg text-lg">
-              {promptInfo.icon}
+            <span className={`p-1.5 rounded-lg text-lg ${isDeleted ? 'bg-gray-100 text-gray-400' : 'bg-indigo-50 text-indigo-600'}`}>
+              {icon}
             </span>
             <div>
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 {formatDate(note.createdAt)}
               </div>
-              <div className="text-sm font-bold text-gray-800">
-                {promptInfo.label}
+              <div className={`text-sm font-bold ${isDeleted ? 'text-gray-400 italic' : 'text-gray-800'}`}>
+                {displayName}
+                {isDeleted && <span className="ml-2 text-xs text-gray-400">(已删除)</span>}
               </div>
             </div>
           </div>
