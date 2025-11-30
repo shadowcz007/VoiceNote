@@ -1,6 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { initClarity } from './services/clarityService';
+
+// 初始化 Clarity 数据埋点（在应用挂载前）
+initClarity();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
