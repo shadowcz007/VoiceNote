@@ -370,7 +370,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
   // 移动端全屏，桌面端modal
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4">
-      <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-3xl h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom-10 sm:zoom-in duration-300 flex flex-col">
+      <div className="bg-white sm:rounded-2xl shadow-2xl w-full sm:max-w-3xl h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom-10 sm:zoom-in duration-300 flex flex-col">
         {/* 移动端导航栏 / 桌面端标题栏 */}
         <div className="flex items-center justify-between p-4 sm:p-4 border-b border-gray-100 bg-white sticky top-0 z-10">
           {/* 移动端：返回按钮 + 标题 */}
